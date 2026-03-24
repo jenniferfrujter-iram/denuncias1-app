@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRAM - Sistema de Gestión de Integridad</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            /* Paleta Oficial IRAM */
+            --iram-blue: #005596; 
+            --iram-light-blue: #0077c8;
+            --iram-gray: #58595b;
+            --bg-gray: #f4f7f9;
+            --border-color: #d1d9e0;
+            --text-main: #333333;
+            --white: #ffffff;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background: var(--white);
+            border-bottom: 4px solid var(--iram-blue);
+            padding: 0.8rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .brand { display: flex; align-items: center; gap: 20px; }
+        .logo-img { height: 50px; width: auto; }
+        .brand-divider { width: 1px; height: 40px; background: var(--border-color); }
+        .brand-text { color: var(--iram-blue); font-weight: 700; font-size: 0.9rem; line-height: 1.1; text-transform: uppercase; }
+        
+        nav { display: flex; gap: 10px; }
+        nav button {
+            background: transparent;
+            border: 1px solid var(--iram-blue);
+            color: var(--iram-blue);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.3s;
+        }
+        nav button:hover { background: var(--iram-blue); color: white; }
+
+        .container { flex: 1; width: 90%; max-width: 1100px; margin: 2rem auto; }
+        .card { background: white; border-radius: 4px; box-shadow: var(--shadow); padding: 2.5rem; margin-bottom: 2rem; border-top: 5px solid var(--iram-blue); }
+        
+        h1, h2, h3 { color: var(--iram-blue); margin-top: 0; font-weight: 700; }
+        .subtitle { color: var(--iram-gray); margin-bottom: 2rem; font-size: 1.1rem; }
+
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-weight: 700; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--iram-gray); }
+        input, select, textarea {
+            width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px;
+            font-size: 1rem; box-sizing: border-box;
+        }
+        input:focus { border-color: var(--iram-blue); outline: none; box-shadow: 0 0 0 2px rgba(0,85,150,0.1); }
+        
+        .btn {
+            padding: 0.9rem 1.8rem; border-radius: 4px; font-weight: 700; cursor: pointer;
+            border: none; transition: 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn-primary { background: var(--iram-blue); color: white; }
+        .btn-primary:hover { background: #004070; }
+        .btn-secondary { background: #e9ecef; color: var(--iram-blue); }
+
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 4px; border-left: 5px solid var(--iram-blue); box-shadow: var(--shadow); text-align: center; }
+        .stat-val { display: block; font-size: 2.2rem; font-weight: 800; color: var(--iram-blue); }
+        .stat-label { font-size: 0.8rem; color: var(--iram-gray); font-weight: 700; text-transform: uppercase; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th { text-align: left; padding: 1rem; background: #f8f9fa; color: var(--iram-blue); font-size: 0.85rem; border-bottom: 2px solid var(--iram-blue); }
+        td { padding: 1rem; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+
+        .badge { padding: 5px 12px; border-radius: 3px; font-size: 0.7rem; font-weight: 800; }
+        .badge-recibida { background: #e3f2fd; color: #0d47a1; }
+        .badge-investigacion { background: #fff3e0; color: #e65100; }
+
+        .hidden { display: none !important; }
+
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0, 0, 0, 0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .modal-body { background: white; width: 95%; max-width: 900px; max-height: 85vh; border-radius: 4px; overflow-y: auto; padding: 2.5rem; border-top: 8px solid var(--iram-blue); }
+        
+        .section-box { background: #fdfdfd; border: 1px solid #eee; padding: 1.5rem; border-radius: 4px; margin-bottom: 1.5rem; border-left: 3px solid var(--iram-blue); }
+        .fp-alert { border: 2px solid var(--danger); background: #fff5f5; color: #c53030; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; font-weight: 700; }
+
+        /* Loader para envío de mail */
+        #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.8); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--iram-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        footer { text-align: center; padding: 2rem; color: var(--iram-gray); font-size: 0.8rem; border-top: 1px solid var(--border-color); margin-top: 3rem; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; font-weight: 700; color: var(--iram-blue);">Procesando envío seguro...</p>
+    </div>
+
+    <header>
+        <div class="brand">
+            <img src="https://iram.org.ar/wp-content/uploads/2021/04/logo-iram.png" alt="Logo IRAM" class="logo-img">
+            <div class="brand-divider"></div>
+            <div class="brand-text">Programa de<br>Integridad (PDI)</div>
+        </div>
+        <nav>
+            <button onclick="showSection('public-home')">INICIO</button>
+            <button id="btn-login-view" onclick="showSection('admin-login')">ACCESO COMITÉ</button>
+            <button id="btn-logout" class="hidden" onclick="handleLogout()">CERRAR SESIÓN</button>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+        <!-- INICIO -->
+        <section id="sec-public-home">
+            <div class="card" style="text-align: center;">
+                <img src="https://iram.org.ar/wp-content/uploads/2021/04/logo-iram.png" alt="IRAM" style="height: 80px; margin-bottom: 2rem;">
+                <h1>Canal de Ética y Transparencia</h1>
+                <p class="subtitle">Canal oficial para el reporte de irregularidades bajo norma ISO 37001.</p>
+                <div style="display: flex; gap: 1.5rem; justify-content: center; margin: 3rem 0;">
+                    <button class="btn btn-primary" onclick="showSection('public-form')">Realizar Denuncia</button>
+                    <button class="btn btn-secondary" onclick="showSection('public-check')">Consultar Expediente</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- FORMULARIO DENUNCIA -->
+        <section id="sec-public-form" class="hidden">
+            <div class="card">
+                <h2>Formulario de Reporte</h2>
+                <form id="denuncia-form" onsubmit="handleDenunciaSubmit(event)">
+                    <div class="section-box">
+                        <h3>1. Información del Hecho</h3>
+                        <div class="form-group">
+                            <label>Naturaleza del Reporte</label>
+                            <select id="f-tipo" required>
+                                <option value="">Seleccione...</option>
+                                <option value="Soborno">Presunto Soborno / Corrupción</option>
+                                <option value="Conflicto de Interés">Conflicto de Interés</option>
+                                <option value="Funcionario Público">Relación con Funcionario Público</option>
+                                <option value="Fraude">Fraude</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Involucrados</label>
+                            <input type="text" id="f-quien" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción detallada</label>
+                            <textarea id="f-relato" rows="5" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>¿Involucra un Funcionario Público?</label>
+                            <select id="f-fp" required>
+                                <option value="No">No</option>
+                                <option value="Si">Sí</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="section-box">
+                        <h3>2. Identidad</h3>
+                        <div class="form-group">
+                            <label>Modalidad</label>
+                            <select id="f-modalidad" onchange="toggleIdentityFields()" required>
+                                <option value="Anonima">Anónima</option>
+                                <option value="Reservada">Identidad Reservada</option>
+                            </select>
+                        </div>
+                        <div id="identity-fields" class="hidden">
+                            <input type="text" id="f-nombre" placeholder="Nombre">
+                            <input type="text" id="f-contacto" placeholder="Email o Teléfono" style="margin-top:10px">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">ENVIAR Y NOTIFICAR COMITÉ</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- RESULTADO -->
+        <section id="sec-public-result" class="hidden">
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 5rem; color: var(--success);">✓</div>
+                <h2>Denuncia Enviada y Notificada</h2>
+                <p>Se ha enviado una notificación automática a <strong>integridad@iram.org.ar</strong>.</p>
+                <div style="background: #f8f9fa; border: 2px solid var(--iram-blue); padding: 2rem; margin: 2rem auto; max-width: 500px;">
+                    <p>CÓDIGO DE SEGUIMIENTO:</p>
+                    <h2 id="res-expediente"></h2>
+                </div>
+                <button class="btn btn-primary" onclick="showSection('public-home')">VOLVER AL INICIO</button>
+            </div>
+        </section>
+
+        <!-- PANEL ADMIN (SIMPLIFICADO) -->
+        <section id="sec-admin-panel" class="hidden">
+            <div class="card">
+                <h3>Gestión de Expedientes</h3>
+                <div id="admin-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Expediente</th>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- LOGIN -->
+        <section id="sec-admin-login" class="hidden">
+            <div class="card" style="max-width: 400px; margin: auto;">
+                <h2>Acceso Comité</h2>
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group"><input type="password" id="l-pass" placeholder="Credencial" required></div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">INGRESAR</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- CONSULTA PÚBLICA -->
+        <section id="sec-public-check" class="hidden">
+            <div class="card" style="max-width: 600px; margin: auto;">
+                <h2>Seguimiento</h2>
+                <input type="text" id="check-exp" placeholder="Ingrese código">
+                <button class="btn btn-primary" style="width:100%; margin-top:20px" onclick="handleCheckStatus()">CONSULTAR</button>
+                <div id="check-result" class="hidden" style="margin-top:20px">
+                    <p>Estado: <span id="c-status" class="badge"></span></p>
+                    <p id="c-msg" style="font-style: italic;"></p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        &copy; 2025 IRAM - Canal de Integridad ISO 37001
+    </footer>
+
+    <script>
+        const APP_KEY = "IRAM_KEY_2025";
+        const ADMIN_PASS = "iram2025";
+
+        function showSection(id) {
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('sec-' + id).classList.remove('hidden');
+        }
+
+        function toggleIdentityFields() {
+            const m = document.getElementById('f-modalidad').value;
+            document.getElementById('identity-fields').className = (m === 'Anonima') ? 'hidden' : '';
+        }
+
+        // FUNCIÓN CLAVE: Envío de correo electrónico a través de API
+        async function notifyCommittee(expId, tipo, involuncrados) {
+            console.log("Iniciando proceso de notificación a integridad@iram.org.ar...");
+            
+            // En una implementación real de Vercel, este sería tu endpoint
+            const API_ENDPOINT = '/api/send-email'; 
+            
+            const emailData = {
+                to: 'integridad@iram.org.ar',
+                subject: `[NUEVA DENUNCIA] Expediente: ${expId}`,
+                body: `Se ha registrado una nueva denuncia en el Canal de Integridad.
+                
+Expediente: ${expId}
+Tipo: ${tipo}
+Involucrados mencionados: ${involuncrados}
+Fecha: ${new Date().toLocaleString()}
+
+Por favor, acceda al panel administrativo para revisar los detalles cifrados.`
+            };
+
+            try {
+                // Simulamos la llamada a la API que harías en Vercel
+                // En producción descomentarías la línea del fetch
+                /*
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(emailData)
+                });
+                return response.ok;
+                */
+                
+                // Simulación para el prototipo:
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        console.log("MAIL ENVIADO EXITOSAMENTE A: integridad@iram.org.ar");
+                        resolve(true);
+                    }, 1500);
+                });
+
+            } catch (error) {
+                console.error("Error al notificar al comité:", error);
+                return false;
+            }
+        }
+
+        async function handleDenunciaSubmit(e) {
+            e.preventDefault();
+            document.getElementById('loading-overlay').classList.remove('hidden');
+
+            const expId = `IRAM-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+            const tipo = document.getElementById('f-tipo').value;
+            const quien = document.getElementById('f-quien').value;
+            const relato = document.getElementById('f-relato').value;
+            const fp = document.getElementById('f-fp').value;
+            const modalidad = document.getElementById('f-modalidad').value;
+
+            // Cifrado local de datos sensibles
+            const payload = { tipo, quien, relato, fp };
+            const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(payload), APP_KEY).toString();
+
+            const entry = {
+                id: expId,
+                fecha: new Date().toLocaleString(),
+                ts: Date.now(),
+                modalidad,
+                data: encryptedData,
+                estado: "Recibida",
+                msg_public: "Denuncia recibida. El comité iniciará el análisis preliminar."
+            };
+
+            // Guardar en Storage local (Simulación de DB)
+            const db = JSON.parse(localStorage.getItem('iram_data') || '[]');
+            db.push(entry);
+            localStorage.setItem('iram_data', JSON.stringify(db));
+
+            // DISPARAR NOTIFICACIÓN POR MAIL
+            await notifyCommittee(expId, tipo, quien);
+
+            document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('res-expediente').innerText = expId;
+            showSection('public-result');
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            if(document.getElementById('l-pass').value === ADMIN_PASS) {
+                renderAdminTable();
+                showSection('admin-panel');
+                document.getElementById('btn-login-view').classList.add('hidden');
+                document.getElementById('btn-logout').classList.remove('hidden');
+            } else {
+                alert("Acceso denegado.");
+            }
+        }
+
+        function handleLogout() {
+            showSection('public-home');
+            document.getElementById('btn-login-view').classList.remove('hidden');
+            document.getElementById('btn-logout').classList.add('hidden');
+        }
+
+        function renderAdminTable() {
+            const db = JSON.parse(localStorage.getItem('iram_data') || '[]');
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = '';
+            db.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${d.id}</td>
+                    <td>${d.fecha}</td>
+                    <td>${d.modalidad}</td>
+                    <td><span class="badge badge-recibida">${d.estado}</span></td>
+                    <td><button onclick="alert('Ver detalles cifrados')">Abrir</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function handleCheckStatus() {
+            const id = document.getElementById('check-exp').value;
+            const db = JSON.parse(localStorage.getItem('iram_data') || '[]');
+            const d = db.find(x => x.id === id);
+            if(d) {
+                document.getElementById('check-result').classList.remove('hidden');
+                document.getElementById('c-status').innerText = d.estado;
+                document.getElementById('c-msg').innerText = d.msg_public;
+            } else {
+                alert("Expediente no hallado.");
+            }
+        }
+    </script>
+</body>
+</html>
